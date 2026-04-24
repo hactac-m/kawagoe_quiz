@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>川越再発見クイズ</title>
+<style>
+body { font-family: "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; background-image: url('backimage.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; }
+.hidden { display: none !important; }
+
+/* ランキングデザイン (タイトルと重ならないよう左右に固定配置) */
+#rankings-container { position: fixed; top: 5%; left: 0; right: 0; display: flex; justify-content: space-between; z-index: 5; padding: 0 30px; }
+.rank-box { background: rgba(255, 255, 255, 0.95); border: 4px solid #333; border-radius: 25px; padding: 15px; width: 320px; box-shadow: 0 15px 40px rgba(0,0,0,0.3); }
+.rank-box h3 { text-align: center; font-size: 1.5em; margin: 0 0 10px 0; border-bottom: 3px solid #333; padding-bottom: 5px; }
+.rank-item { display: flex; justify-content: space-between; padding: 8px 10px; margin: 5px 0; background: #f8f8f8; border-radius: 10px; font-size: 1.1em; font-weight: bold; transition: 0.2s; }
+.rank-item:hover { transform: scale(1.02); background: #eee; }
+.top-1 { border-left: 10px solid #FFD700; color: #b8860b; }
+.top-2 { border-left: 10px solid #C0C0C0; color: #696969; }
+.top-3 { border-left: 10px solid #CD7F32; color: #a0522d; }
+
+#title-image-only { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); width: 600px; z-index: 11; }
+
+/* メニューの配置を下に調整 */
+.menu-container { position: fixed; bottom: 15%; width: 800px; left: 50%; transform: translateX(-50%); z-index: 10; }
+.white-box { background-color: rgba(255, 255, 255, 0.9); padding: 10px 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center; display:flex; gap:30px; }
+.mode-btn { flex: 1; cursor: pointer; padding: 20px; border: 4px solid #333; border-radius: 25px; font-size: 1.5em; font-weight: bold; transition: 0.3s; background: #fff; text-align: center; }
+.mode-btn:hover { background: #333; color: #fff; }
+
+#quiz-ui-container { z-index: 20; display: flex; flex-direction: column; align-items: center; }
+.quiz-frame { width: 900px; background-color: rgba(255, 255, 255, 0.7); padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center; }
+.question-text { min-height: 100px; font-size: 1.8em; font-weight: bold; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+#choices-container { display: flex; gap: 25px; justify-content: center; margin-bottom: 20px; }
+.choice-card { width: 250px; background-color: #e3f2fd; border-radius: 20px; padding: 30px 20px; cursor: pointer; border: 3px solid transparent; transition: 0.3s; display: flex; flex-direction: column; align-items: center; min-height: 180px; justify-content: center; }
+.choice-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+.card-number { font-size: 3em; font-weight: bold; color: #1976d2; margin-bottom: 10px; }
+.card-text { font-size: 1.8em; font-weight: bold; color: #333; }
+
+#feedback-overlay, #result-overlay { position: fixed; top:0; left:0; width:100%; height:100%; display:none; justify-content:center; align-items:center; z-index:100; }
+#feedback-overlay.show, #result-overlay.show { display: flex; }
+.correct-bg { background: rgba(200, 230, 201, 0.9); }
+.incorrect-bg { background: rgba(255, 205, 210, 0.9); }
+.feedback-content { background: #fff; border: 4px solid #fff; border-radius: 30px; padding: 40px; width: 500px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+
+#char-message { position: absolute; top: 150px; left: -250px; background: #fff; border: 3px solid #fff; padding: 20px 30px; border-radius: 50px; font-size: 1.3em; font-weight: bold; opacity: 0; transition: opacity 0.3s, left 0.3s; pointer-events: none; white-space: nowrap; z-index: 160; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+.menu-style-right { left: -100px !important; }
+.menu-style-left { left: -180px !important; }
+#char-image-container { position: fixed; bottom: -20px; right: 20px; width: 392px; height: 588px; z-index: 150; pointer-events: none; }
+.char-wrapper { position: relative; width: 100%; height: 100%; }
+.char-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+@keyframes jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+.is-jumping { animation: jump 0.4s ease; }
+@keyframes talk { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.is-talking #char-mouth { animation: talk 0.5s infinite; }
+.action-btn { background: #333; color: white; border: none; padding: 15px 30px; border-radius: 30px; cursor: pointer; margin-top: 15px; font-size: 1.1em; }
+.back-btn { background: #999; color: white; border: none; padding: 15px 30px; border-radius: 30px; cursor: pointer; margin-top: 15px; font-size: 1.1em; margin-left: 10px;}
+</style>
+</head>
+<body>
+
+<div id="char-image-container">
+<div id="char-wrapper" class="char-wrapper">
+<div id="char-message"></div>
+<img id="char-base" class="char-img" src="chara-image/chara_default.png">
+<img id="char-mouth" class="char-img" src="chara-image/chara_happy.png">
+</div>
+</div>
+
+<div id="rankings-container">
+<div id="rank-display-10quiz" class="rank-box"><h3>🏆 10問アタック</h3><div class="list"></div></div>
+<div id="rank-display-survival" class="rank-box"><h3>🔥 サバイバル</h3><div class="list"></div></div>
+</div>
+
+<div id="top-title-container">
+<img src="タイトル.png" id="title-image-only">
+</div>
+
+<div id="bottom-mode-container" class="menu-container">
+<div class="white-box">
+<div class="mode-btn" onmouseover="charReact('10問で腕試し？', 'right')" onmouseout="charReset()" onclick="selectMode('10quiz')"><h3>🏆 10問アタック</h3></div>
+<div class="mode-btn" onmouseover="charReact('運と実力の限界に挑戦！', 'left')" onmouseout="charReset()" onclick="selectMode('survival')"><h3>🔥 サバイバル</h3></div>
+</div>
+</div>
+
+<div id="level-select-container" class="menu-container hidden">
+<div class="white-box">
+<div class="mode-btn" onclick="selectLevel('easy')"><h3>🔰 かんたん</h3></div>
+<div class="mode-btn" onclick="selectLevel('normal')"><h3>⚡ ふつう</h3></div>
+</div>
+</div>
+
+<div id="quiz-ui-container" class="hidden">
+<div id="start-confirm" class="quiz-frame">
+<h1 id="selected-info"></h1>
+<button class="action-btn" onclick="startGame()">クイズ開始！</button>
+<button class="back-btn" onclick="goBack()">戻る</button>
+</div>
+<div id="quiz-wrapper" class="quiz-frame hidden">
+<div class="question-text"></div>
+<div id="choices-container"></div>
+<div id="hint-text" style="background:#fbe9e7; padding:15px; border-radius:10px; font-weight:bold;"></div>
+</div>
+</div>
+
+<div id="feedback-overlay">
+<div class="feedback-content">
+<div id="result-status-text" style="font-size:2em; font-weight:bold;"></div>
+<div id="info-text" style="margin:20px 0; background:rgba(0,0,0,0.05); padding:15px; border-radius:10px; text-align:left;"></div>
+<button id="next-btn" class="action-btn">次へ</button>
+</div>
+</div>
+
+<div id="result-overlay">
+<div class="feedback-content">
+<div id="final-rank-text" style="font-size:1.5em; margin-bottom:10px;"></div>
+<input type="text" id="player-name" placeholder="お名前を入力" maxlength="10" style="padding:10px; font-size:1em; width:80%; margin-bottom:10px;">
+<br><button class="action-btn" onclick="saveRanking()">登録して終了</button>
+</div>
+</div>
+
+<script>
+var allQuizData = [
+{ level: "easy", q: "川越の「菓子屋横丁」では、昔ながらのどんなお菓子が売られているかな？", a: ["カラフルなキャンディや金平糖", "高級なフランス風ケーキ", "温かいおでん"], correct: 0, hint: "キラキラして甘くて、小さくてかわいいお菓子がいっぱいあるよ。", info: "菓子屋横丁は、手作り感のある懐かしい駄菓子がたくさん並ぶ場所です。" },
+{ level: "easy", q: "川越の町を走る、レトロでかわいい観光バスの名前は何かな？", a: ["小江戸巡回バス", "急行電車バス", "さつまいもシャトル"], correct: 0, hint: "川越の「小江戸」という名前が入っているよ。", info: "レトロな見た目で、川越の観光地をぐるりと回ってくれる、みんなのおなじみのバスです。" },
+{ level: "easy", q: "川越で有名な「さつまいも」を使ったスイーツで、一番定番なのはどれかな？", a: ["さつまいもソフトクリーム", "さつまいもカレー", "さつまいもピザ"], correct: 0, hint: "冷たくて甘くて、町を歩きながら食べるのにぴったりなものだよ。", info: "冷たくて甘くて、町を歩きながら食べるのにぴったりです！" },
+{ level: "easy", q: "川越の町には、黒くてかっこいい「蔵（くら）」がたくさんあるよ。これは何のためにあるものかな？", a: ["大切なものを火事から守るため", "雨をよけるため", "お化けを隠すため"], correct: 0, hint: "中にある宝物を守るための頑丈な建物だよ。", info: "壁がとっても厚くて頑丈なので、火事の熱から大事な荷物を守ってくれるんだよ。" },
+{ level: "easy", q: "川越氷川神社で有名な、おみくじが入っているものは何かな？", a: ["鯛（たい）のぬいぐるみ", "さつまいもの模型", "時の鐘のミニチュア"], correct: 0, hint: "お祝いの席にも登場する、縁起の良い赤い魚だよ。", info: "釣り竿を使って、自分で釣り上げるんだよ。とっても縁起がいいね。" },
+{ level: "easy", q: "川越の町には、おいしい食べ物がたくさんあるけれど、秋になると特によく見かける「紫色の皮のお野菜」は何かな？", a: ["なす", "さつまいも", "紫キャベツ"], correct: 1, hint: "川越の名物といったらコレ！お菓子にもよくなるよ。", info: "川越はさつまいもがとても有名で、秋にはたくさん収穫されます。" },
+{ level: "easy", q: "川越には、お人形さんがたくさん並んでいるお祭りがあるよ。それは何という名前のお祭りかな？", a: ["川越まつり", "ひなまつり", "雪まつり"], correct: 0, hint: "大きな山車（だし）の上に、立派な人形が乗っているお祭りだよ。", info: "川越まつりは、豪華な山車に大きな人形を乗せて町を練り歩く、とても有名なお祭りです。" },
+{ level: "easy", q: "川越の「時の鐘」は、何でできているかな？", a: ["プラスチック", "木（き）", "金属（きんぞく）"], correct: 2, hint: "ゴーンと大きな音を鳴らすためには、かたい材料が必要だよ。", info: "鐘は銅などの金属で作られており、だからこそ遠くまで響くきれいな音が鳴るのです。" },
+{ level: "easy", q: "川越で、神社のお使いと言われている不思議な動物は誰かな？", a: ["はくたく", "八咫烏(ヤタガラス)", "ねこ"], correct: 1, hint: "川越の氷川神社など、神社で神様の使いとされているよ。", info: "八咫烏(ヤタガラス)は、人生の迷いや闇に悩む人々を明るい希望の世界へと導く霊鳥とされています。" },
+{ level: "easy", q: "川越にある「蔵造りの町並み」の屋根の上にのっている、魔除けのお守りみたいな飾りは何かな？", a: ["風見鶏（かざみどり）", "鬼瓦（おにがわら）", "アンテナ"], correct: 1, hint: "鬼の顔をした、いかつい飾りが屋根の端っこにあるよ。", info: "蔵造りの屋根には、建物を守るために鬼の顔をした「鬼瓦」が飾られています。" },
+{ level: "easy", q: "川越の名物「時の鐘」は、何でできているかな？", a: ["小江戸巡回バス", "急行電車バス", "さつまいもシャトル"], correct: 0, hint: "川越の「小江戸」という名前が入っているよ。", info: "レトロな見た目で、川越の観光地をぐるりと回ってくれる、みんなのおなじみのバスです。" },
+{ level: "easy", q: "川越には、広い公園の中にたくさんの木や池があるよ.春になると、お花見ができる有名な公園はどこかな？", a: ["川越水上公園（かわごえすいじょうこうえん）", "昭和の街（しょうわのまち）", "蔵造り通り（くらづくりどおり）"], correct: 0, hint: "プールや大きな池があって、お休みの日にはみんなで遊びに行く場所だよ。", info: "川越水上公園は、広い敷地と大きな池があり、お花見スポットとしても人気です。" },
+{ level: "easy", q: "川越の町をあるいていると、かべが「黒い」お家やお店がたくさんあるよ。この黒いかべの正体は何かな？", a: ["黒いペンキ", "炭（すみ）", "しっくい（黒色）"], correct: 2, hint: "昔は火に強い材料として、しっくいという泥のようなものを塗って仕上げていたんだよ。", info: "黒いしっくいを何層にも重ねて塗り上げる「黒漆喰（くろしっくい）」という技術が使われています。" },
+{ level: "easy", q: "川越にある神社には、「鯉（こい）」の形をしたお守りがあるよ。何をお願いするためのお守りかな？", a: ["勉強をがんばるため", "恋（こい）を叶えるため", "足が速くなるため"], correct: 1, hint: "「鯉」という言葉と、お願い事の言葉は読み方が同じだよ。", info: "「鯉」と「恋」をかけて、縁結びのお守りとして親しまれています。" },
+{ level: "easy", q: "川越には「大正時代」の古い建物がたくさん残っている通りがあるよ.この通りは何という名前かな？", a: ["大正浪漫夢通り（たいしょうろまんゆめどおり）", "げんだい通り", "さつまいも通り"], correct: 0, hint: "「大正」という時代と、「ロマン」という言葉が入っているよ。", info: "レトロな大正時代の雰囲気を楽しむことができる、とても有名な通りです。" },
+{ level: "easy", q: "川越の町を歩いていると、いい香りがするよ.川越で一番有名な「さつまいものお菓子」で、焼き立てはホクホクしているものは何かな？", a: ["さつまいもチップス", "焼き芋（やきいも）", "さつまいもジュース"], correct: 1, hint: "川越の町中で、焼いている甘いにおいが漂ってくるよ。", info: "川越の秋の風物詩といえば、やっぱり焼きたての焼き芋です。" },
+{ level: "easy", q: "川越にある「喜多院（きたいん）」というお寺には、いろいろな顔をした石の仏様がたくさん並んでいるよ。何体くらいあるかな？", a: ["50体くらい", "500体くらい", "10体くらい"], correct: 1, hint: "「五百羅漢（ごひゃくらかん）」と呼ばれているよ。", info: "五百羅漢といって、全部で500体以上の石仏が並んでいます。笑っている顔や怒っている顔など、ひとつひとつ違う表情だよ。" },
+{ level: "easy", q: "川越には「蔵造りの町並み」があるけれど、その通りの名前はなんていうかな？", a: ["一番街（いちばんがい）", "商店街通り", "お菓子通り"], correct: 0, hint: "川越のメインストリートで、一番有名で賑やかな通りだよ。", info: "蔵造りの建物がずらりと並ぶ、川越観光のメインストリートは「一番街」と呼ばれています。" },
+{ level: "easy", q: "川越のお祭りで、大きな山車（だし）の上で演奏される音楽を何と呼ぶかな？", a: ["おはやし", "ジャズ", "クラシック"], correct: 0, hint: "太鼓や笛（ふえ）を使って演奏する、日本のお祭り音楽だよ。", info: "山車の上では、太鼓や笛、鉦（かね）を使った「おはやし」が賑やかに演奏されます。" },
+{ level: "easy", q: "川越の町で、秋によく見る「さつまいも」の形をした、あたたかいおまんじゅうの名前は？", a: ["いも恋（いもこい）", "さつまいもパン", "いもドーナツ"], correct: 0, hint: "名前の中に「恋（こい）」という言葉が入っているよ。", info: "「いも恋」は、さつまいもとつぶあんをモチモチの皮で包んだ、川越の名物おまんじゅうです。" },
+{ level: "easy", q: "川越には、とても古い「お城」の跡があるよ.そのお城の入り口にある立派な建物をなんというかな？", a: ["本丸御殿（ほんまるごてん）", "天守閣（てんしゅかく）", "おうち"], correct: 0, hint: "「ほんまる」という名前がつく、お殿様がいた場所だよ。", info: "川越城の入り口には、お殿様が生活したり政治をしたりした「本丸御殿」が残っています。" },
+{ level: "easy", q: "川越の町を歩くと、お店の看板（かんばん）に「文字」が書かれているよ.昔ながらの看板で、字が右から左に向かって書かれていることがあるけれど、なぜかな？", a: ["間違えて書いたから", "昔の日本語の書き方に合わせていたから", "おしゃれに見えるから"], correct: 1, hint: "", info: "昔の日本では、文字は右から左へ書くのが普通だったため、古い看板はその書き方を残しているんだよ。" },
+{ level: "easy", q: "川越の菓子屋横丁で売られている「長い麩菓子（ふがし）」は、とても大きいことで有名だよ.このお菓子は、何からできているかな？", a: ["おもち", "小麦粉（こむぎこ）", "寒天（かんてん）"], correct: 1, hint: "パンやうどんを作る材料と同じものを使っているよ。", info: "麩菓子は、小麦粉から作った「麩（ふ）」に、黒砂糖をぬって作られているよ。" },
+{ level: "easy", q: "川越氷川神社には、おみくじやお守りのほかに、お参りする人を見守る「絵馬（えま）のトンネル」があるよ.なぜこんなにたくさんの絵馬があるのかな？", a: ["お部屋を飾るため", "みんなの願い事がたくさん集まったから", "傘（かさ）代わりにするため"], correct: 1, hint: "願い事を書いた絵馬は、神様に届けるために境内に飾るんだよ。", info: "みんなが書いたたくさんの願い事が集まって、トンネルのようになっているんだよ。" },
+{ level: "easy", q: "川越城の本丸御殿（ほんまるごてん）の入り口には、お殿様を待つ人たちのための「部屋」があるよ.ここで働く人たちは、どんな姿勢で待っていたかな？", a: ["正座（せいざ）", "立っている", "寝ている"], correct: 0, hint: "昔の日本のお部屋では、お殿様の前で座るのがマナーだったよ。", info: "畳の上では正座をして待つのが、当時の正しいマナーでした。" },
+{ level: "normal", q: "川越の「小江戸」という呼び名は、どんな理由で付けられたのでしょうか？", a: ["江戸の文化や町並みが色濃く残っているから", "江戸という人が作った町だから", "江戸時代に江戸に住んでいた人が移り住んだから"], correct: 0, hint: "昔の東京のことを指す言葉が、名前の由来になっています。", info: "江戸時代に江戸とのつながりが非常に強く、その面影（蔵造りなど）を今に伝えているため「小江戸」と呼ばれます。" },
+{ level: "normal", q: "川越の蔵造りの町並みが、現在のような耐火建築になった直接のきっかけは何でしょうか？", a: ["川越の大火", "観光客を増やすため", "江戸幕府の命令"], correct: 0, hint: "もし火事が起きても燃え広がらない工夫が、あの建物には隠されています。", info: "明治時代に町の大半を焼く大火災が発生し、商人の財産を守るために防火性能が高い蔵造りが採用されました。" },
+{ level: "normal", q: "川越氷川神社で有名な「縁結び」の神様ですが、なぜ多くの人が訪れるのでしょうか？", a: ["五柱の神様が家族だから", "お寺の中に神社があるから", "川越で一番高い場所にあるから"], correct: 0, hint: "「結び」に注目してみましょう。", info: "祀られている神様がご家族であることから、人と人とのつながりや家族の絆を深めるご利益があると言われています。" },
+{ level: "normal", q: "川越の名産品である「さつまいも」。江戸時代、なぜ川越で作られるようになったのでしょうか？", a: ["江戸の町へ運びやすく、江戸で人気があったから", "川越の気候が外国から来た植物に合っていたから", "お殿様が大好きだったから"], correct: 0, hint: "江戸という巨大な消費地に対して、川越はどのような役割を持っていたか考えてみましょう。", info: "新河岸川の舟運を利用して、江戸という巨大な消費地へ安定して出荷できたことが理由です。" },
+{ level: "normal", q: "川越の「時の鐘」は、1日に何回鐘の音が鳴るようになっているでしょうか？", a: ["4回", "12回", "1回"], correct: 0, hint: "朝、お昼、夕方と、人々の生活リズムに合わせて鳴る回数が決まっています。", info: "現在は6時、12時、15時、18時の1日4回、自動で鐘が鳴り、人々に時を知らせています。" },
+{ level: "normal", q: "川越の伝統的な祭礼である「川越まつり」が、ユネスコ無形文化遺産に登録された大きな理由はなんでしょう？", a: ["日本で一番古いお祭りだから", "豪華な山車と、それを動かす町衆の絆や継承が評価されたから", "参加人数が世界一だから"], correct: 1, hint: "登録のポイントは「歴史の古さ」よりも「伝統を今の町の人たちがどう守っているか」です。", info: "山車を使った伝統行事を、地域の住人たちが世代を超えて守り続けている点が非常に高く評価されました。" },
+{ level: "normal", q: "川越市の北部に広がる「伊佐沼（いさぬま）」は、埼玉県内でどのような特徴を持つ場所でしょうか？", a: ["県内最大の天然の沼である", "巨大なダムがある", "火山湖である"], correct: 0, hint: "川越にある大きな水辺で、季節によって野鳥がたくさん見られます。", info: "伊佐沼は埼玉県内で一番大きな天然の沼として知られています。" },
+{ level: "normal", q: "川越特産の「河越茶」。歴史的にはどのような権力者にも愛されたと言われていますが、それは誰でしょうか？", a: ["豊臣秀吉", "徳川家康", "鎌倉時代の有力者（河越氏など）"], correct: 2, hint: "川越は鎌倉時代から政治的に重要な場所でした。", info: "鎌倉時代、武蔵国を治めた河越氏が、当時貴重だったお茶を愛飲していた記録があります。" },
+{ level: "normal", q: "川越には、江戸時代の城下町の面影を残す場所があります。「川越城」の本丸御殿.現存する本丸御殿は、日本に何箇所かしかない貴重なものですが、その特徴は？", a: ["日本で唯一の二階建て御殿である", "東日本で唯一現存する本丸御殿である", "城がそのまま丸ごと残っている"], correct: 1, hint: "全国を見渡しても、本丸御殿という建物が残っている場所はとても少ないです。", info: "非常に貴重な建築物で、東日本にある唯一の城の本丸御殿です。" },
+{ level: "normal", q: "川越の菓子屋横丁は、明治時代に特定の人物が飴作りを始めたことで発展しました.その人物は？", a: ["鈴木藤左衛門（すずきとうざえもん）", "山田太郎", "川越三郎"], correct: 0, hint: "砂糖と飴の町として発展させるきっかけを作った人物です。", info: "明治の初め、鈴木藤左衛門が菓子作りを始めたことが、菓子屋横丁の起源と言われています。" },
+{ level: "normal", q: "川越城の別名は何と呼ばれているでしょうか？", a: ["霧隠城（きりがくれじょう）", "初雁城（はつかりじょう）", "雲見城（くもみじょう）"], correct: 1, hint: "ある鳥の名前が由来になっています。", info: "秋になると初雁（初めて飛んでくる雁）がやってくる様子から、初雁城と呼ばれます。" },
+{ level: "normal", q: "川越の町並みに残る「蔵造り」において、窓や扉に使われる「観音開き」の厚い扉を何と呼ぶでしょうか？", a: ["土扉（つちとびら）", "蔵戸（くらど）", "鉄壁（てっぺき）"], correct: 1, hint: "「蔵」の「戸」と書くそのままの名前です。", info: "蔵の入り口や窓に使われる重厚な扉は蔵戸と呼ばれます。" },
+{ level: "normal", q: "川越藩の藩主として有名な人物で、老中として幕府で活躍し、「知恵伊豆」と呼ばれたのは誰でしょうか？", a: ["松平信綱（まつだいらのぶつな）", "徳川光圀（とくがわみつくに）", "井伊直弼（いいなおすけ）"], correct: 0, hint: "「伊豆」という官職名と、賢いことからそう呼ばれました。", info: "松平信綱は川越藩主となり、幕府の政治を支えて「知恵伊豆」と称賛されました。" },
+{ level: "normal", q: "川越の菓子屋横丁は、ある特定の通り沿いに発展しました.その通りの名前は？", a: ["昭和の街通り", "菓子屋横丁通り", "石田長光通り"], correct: 1, hint: "通りの名前自体がその場所の特徴を表しています。", info: "現在でも「菓子屋横丁」という名称で親しまれている通りの一角です。" },
+{ level: "normal", q: "川越でかつて運航されていた、江戸との物流の要となった川の名前は？", a: ["隅田川", "新河岸川（しんがしがわ）", "利根川"], correct: 1, hint: "川越の舟運といえば、この川の名前が必ず挙がります。", info: "新河岸川は舟運を利用して物資を江戸へ運ぶ重要な川でした。" },
+{ level: "normal", q: "川越藩の松平信綱が行った、城下町の整備によって確立された「川越の都市計画」を何と呼ぶでしょうか？", a: ["蔵造り整備令", "川越都市プラン", "川越町割（かわごえまちわり）"], correct: 2, hint: "町を区切って計画的に配置する手法です。", info: "信綱が現在の川越の町並みの基礎となる町割りを行い、城下町としての繁栄を築きました。" },
+{ level: "normal", q: "川越氷川神社で夏に開催され、多くの風鈴が飾られることで有名な行事は何でしょうか？", a: ["縁むすび風鈴（えんむすびふうりん）", "氷川の涼み会", "風鈴祭り"], correct: 0, hint: "縁結びの神社ならではの名称です。", info: "夏の期間限定で、境内にたくさんの風鈴が飾られる非常に人気のある行事です。" },
+{ level: "normal", q: "川越市内にある「喜多院（きたいん）」は、徳川家と深い関わりがあります.特に有名な建物は何でしょうか？", a: ["家光誕生の間", "家康のお墓", "秀忠の茶室"], correct: 0, hint: "元々お城にあったものです。", info: "江戸城から移築された、徳川家光公ゆかりの建物が残されています。" },
+{ level: "normal", q: "川越市のシンボルマークは、何をモチーフにデザインされたものでしょうか？", a: ["川越城の形", "時の鐘と市の花「山吹」", "さつまいも"], correct: 1, hint: "市の歴史と、春に咲く黄色い花を組み合わせています。", info: "川越のシンボルである「時の鐘」と、市の花である「山吹」を融合させたデザインです。" },
+{ level: "normal", q: "かつて川越には「武州川越」という名前のビールがあったと言われています.さて、現在現在も川越を代表する地ビールブランドは？", a: ["COEDOビール", "川越地酒ビール", "小江戸エール"], correct: 0, hint: "世界的な賞も受賞している、非常に有名なブランドです。", info: "COEDOビールは川越を拠点に、世界中で愛されている地ビールブランドです。" },
+{ level: "normal", q: "喜多院にある「五百羅漢」は、あるお坊さんが寄進したことで始まりました.そのお坊さんは？", a: ["志（こころざし）良和尚", "仏海（ぶっかい）和尚", "栄久（えいきゅう）和尚"], correct: 1, hint: "仏教といえば？", info: "第54世住職である仏海和尚が、多くの寄付を集めて建立しました。" },
+{ level: "normal", q: "川越市内を流れる新河岸川.江戸時代、舟運を管理するために置かれた役所を何と呼ぶ？", a: ["河岸場（かしば）", "舟運奉行所", "役所番屋"], correct: 0, hint: "荷物の積み下ろしを行う場所を「河岸」と呼びました。", info: "物資を積み下ろす場所を河岸と呼び、川越には多くの河岸が整備されました。" },
+{ level: "normal", q: "毎年10月に行われる「川越まつり」.山車と山車が出会った時に行われる、祭りのハイライトといえば？", a: ["曳っかわせ（ひっかわせ）", "山車競演（だしきょうえん）", "祭囃子合戦（まつりばやしがっせん）"], correct: 0, hint: "お互いの山車を近づけて、音楽を競い合います。", info: "山車同士が向かい合い、互いのおはやしを競い合う「曳っかわせ」が最大の見どころです。" },
+{ level: "normal", q: "川越の蔵造りの町並みが、現在のような耐火構造の形になったきっかけとなった「明治の大火」.発生した年はいつ？", a: ["明治10年", "明治26年", "明治35年"], correct: 1, hint: "19世紀の終わり頃、川越の町の大半が焼失してしまった出来事です。", info: "明治26年の大火で町が焼けた後、商人たちが耐火建築である蔵造りの建物を競って建てました。" },
+{ level: "normal", q: "川越にある「三芳野神社（みよしのじんじゃ）」.この神社は、わらべ歌の何という歌の舞台として知られている？", a: ["かごめかごめ", "とおりゃんせ", "あんたがたどこさ"], correct: 1, hint: "神社の境内が「天神様の細道」とされています。", info: "「とおりゃんせ」の歌詞にある「天神様の細道」は、城の裏手にあったこの神社の参道のことだと言われています。" },
+];
+
+var selectedMode = "", selectedLevel = "", currentIdx = 0, score = 0, currentQuizSet = [];
+
+function charReact(m, d) { const w = document.getElementById('char-wrapper'); const box = document.getElementById('char-message'); box.classList.remove('menu-style-right', 'menu-style-left'); box.classList.add(d === 'right' ? 'menu-style-right' : 'menu-style-left'); w.classList.add('is-jumping'); box.innerText = m; box.style.opacity = '1'; setTimeout(() => w.classList.remove('is-jumping'), 400); }
+function charReset() { document.getElementById('char-message').style.opacity = '0'; }
+function startTalking() { document.getElementById('char-wrapper').classList.add('is-talking'); setTimeout(() => document.getElementById('char-wrapper').classList.remove('is-talking'), 1000); }
+
+function selectMode(m) { selectedMode = m; document.getElementById('bottom-mode-container').classList.add('hidden'); document.getElementById('level-select-container').classList.remove('hidden'); }
+function selectLevel(l) { selectedLevel = l; document.getElementById('level-select-container').classList.add('hidden'); document.getElementById('quiz-ui-container').classList.remove('hidden'); document.getElementById('top-title-container').classList.add('hidden'); document.getElementById('rankings-container').classList.add('hidden'); document.getElementById('selected-info').innerText = selectedMode + " (" + l + ")"; }
+function goBack() { location.reload(); }
+
+function startGame() {
+  let filteredData = [];
+  if (selectedMode === 'survival' && selectedLevel === 'normal') {
+    filteredData = [...allQuizData];
+  } else {
+    filteredData = allQuizData.filter(q => q.level === selectedLevel);
+  }
+  filteredData.sort(() => Math.random() - 0.5);
+  if (selectedMode === '10quiz') {
+    currentQuizSet = filteredData.slice(0, 10);
+  } else {
+    currentQuizSet = filteredData;
+  }
+  currentIdx = 0; score = 0;
+  document.getElementById('start-confirm').classList.add('hidden');
+  document.getElementById('quiz-wrapper').classList.remove('hidden');
+  showQuiz();
+}
+
+function showQuiz() {
+  var data = currentQuizSet[currentIdx];
+  document.querySelector('.question-text').innerText = "Q. " + data.q;
+  document.getElementById('hint-text').innerText = "💡 ヒント: " + data.hint;
+  var c = document.getElementById('choices-container'); c.innerHTML = '';
+  data.a.forEach((txt, i) => {
+    var d = document.createElement('div'); d.className = 'choice-card';
+    d.innerHTML = `<div class="card-number">${i+1}</div><div class="card-text">${txt}</div>`;
+    d.onclick = () => checkAnswer(i);
+    c.appendChild(d);
+  });
+}
+
+function checkAnswer(idx) {
+  var data = currentQuizSet[currentIdx];
+  var isCorrect = (idx === data.correct);
+  if (isCorrect) score++;
+  const overlay = document.getElementById('feedback-overlay');
+  overlay.className = 'show ' + (isCorrect ? 'correct-bg' : 'incorrect-bg');
+  document.getElementById('result-status-text').innerText = isCorrect ? "✅ 正解！" : "❌ 不正解...";
+  document.getElementById('info-text').innerText = data.info;
+  startTalking();
+  document.getElementById('next-btn').onclick = () => {
+    overlay.classList.remove('show', 'correct-bg', 'incorrect-bg');
+    if (!isCorrect && selectedMode === 'survival') {
+      endGame();
+    } else if (currentIdx >= currentQuizSet.length - 1) {
+      endGame();
+    } else {
+      currentIdx++; showQuiz();
+    }
+  };
+}
+
+function endGame() {
+  document.getElementById('quiz-wrapper').classList.add('hidden');
+  document.getElementById('result-overlay').classList.add('show');
+  document.getElementById('final-rank-text').innerText = "終了！スコア: " + score + "点。お名前を入力してください。";
+}
+
+function saveRanking() {
+  const name = document.getElementById('player-name').value || "名無し";
+
+  // 管理者用隠しコマンド：サバイバルモードかつ0点で「mitani」と入力
+  if (name === "mitani" && score === 0) {
+    if (confirm("全ランキングデータを削除しますか？")) {
+      localStorage.removeItem('quizRankings_10quiz');
+      localStorage.removeItem('quizRankings_survival');
+      alert("データを削除しました。");
+      location.reload();
+      return;
+    }
+  }
+
+  const mode = selectedMode;
+  let rankings = JSON.parse(localStorage.getItem('quizRankings_' + mode) || "[]");
+  const now = new Date().getTime();
+  rankings.unshift({ name: name, score: score, date: now });
+  rankings.sort((a, b) => b.score - a.score || b.date - a.date);
+  localStorage.setItem('quizRankings_' + mode, JSON.stringify(rankings.slice(0, 50)));
+  
+  const myRank = rankings.findIndex(r => r.date === now) + 1;
+  alert(myRank + "位です！");
+  location.reload();
+}
+
+function displayRankings() {
+  ['10quiz', 'survival'].forEach(mode => {
+    const data = JSON.parse(localStorage.getItem('quizRankings_' + mode) || "[]");
+    const container = document.querySelector(`#rank-display-${mode} .list`);
+    if(data.length === 0){ container.innerHTML = '<div class="rank-item">記録なし</div>'; return; }
+    container.innerHTML = data.slice(0, 5).map((r, i) => {
+        let topClass = i < 3 ? `top-${i + 1}` : '';
+        // 1位～3位にアイコンを表示（サイズを50pxに変更）
+        let iconHtml = '';
+        if (i === 0) iconHtml = '<img src="金.png" style="width:50px; height:50px; vertical-align:middle; margin-left:5px;">';
+        else if (i === 1) iconHtml = '<img src="銀.png" style="width:50px; height:50px; vertical-align:middle; margin-left:5px;">';
+        else if (i === 2) iconHtml = '<img src="銅.png" style="width:50px; height:50px; vertical-align:middle; margin-left:5px;">';
+        
+        return `<div class="rank-item ${topClass}"><span>${i + 1}位 ${r.name}${iconHtml}</span><span>${r.score}pt</span></div>`;
+    }).join('');
+  });
+}
+window.onload = displayRankings;
+</script>
+</body>
+</html>
